@@ -1,0 +1,38 @@
+{
+  "encode": {
+    "width": 32,
+    "height": 32,
+    "bit_depth": 8,
+    "coding": "manchester",
+    "crc32": "941269be",
+    "frame_ms": 40,
+    "symbols": 16576,
+    "duration_ms": 663040,
+    "timeline": "evidence/transmit_timeline.json",
+    "pixels": 1024
+  },
+  "simulate": {
+    "samples": 41441,
+    "sample_hz": 62.5,
+    "duration_ms": 663040.0,
+    "frame_ms": 40.0,
+    "signal": "evidence/signal.csv",
+    "png_frames": 0,
+    "frames_dir": null
+  },
+  "decode": {
+    "width": 32,
+    "height": 32,
+    "bit_depth": 8,
+    "coding": "manchester",
+    "crc32_expected": "941269be",
+    "crc32_got": "941269be",
+    "crc_ok": true,
+    "pixels": 1024,
+    "image": "evidence/demo_rebuilt.png",
+    "signal": "evidence/signal.csv",
+    "frame_ms": 40
+  },
+  "mae": 0.0,
+  "pass": true
+}
