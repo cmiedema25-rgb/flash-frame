@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>FlashFrame Transmitter</title>
+  <style>
+    :root { color-scheme: dark; }
+    html, body {
+      margin: 0; height: 100%; background: #000; color: #eee;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    }
+    #ui {
+      position: fixed; inset: 0; display: flex; flex-direction: column;
+      align-items: center; justify-content: center; gap: 1rem; padding: 1.5rem;
+      text-align: center; z-index: 2; background: #111;
+    }
+    #ui.hidden { display: none; }
+    #flash {
+      position: fixed; inset: 0; background: #000; z-index: 1;
+    }
+    h1 { font-size: 1.4rem; margin: 0; font-weight: 600; }
+    p { max-width: 28rem; opacity: 0.85; line-height: 1.45; }
+    input[type=file], button, select {
+      font: inherit; padding: 0.65rem 1rem; border-radius: 8px; border: 1px solid #444;
+      background: #222; color: #fff;
+    }
+    button {
+      background: #3b82f6; border-color: #3b82f6; cursor: pointer; font-weight: 600;
+    }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    #status { font-variant-numeric: tabular-nums; min-height: 1.25rem; }
+    .hint { font-size: 0.85rem; opacity: 0.7; }
+  </style>
+</head>
+<body>
+  <div id="flash" aria-hidden="true"></div>
+  <div id="ui">
+    <h1>FlashFrame Transmitter</h1>
+    <p>
+      Load a <code>timeline.json</code> from <code>flashframe encode</code>,
+      then fullscreen-blink this page so another phone’s camera can watch the brightness.
+    </p>
+    <input id="file" type="file" accept="application/json,.json" />
+    <label class="hint">
+      Repeat
+      <select id="loops">
+        <option value="1">1×</option>
+        <option value="2">2×</option>
+        <option value="3" selected>3×</option>
+        <option value="5">5×</option>
+      </select>
+    </label>
+    <button id="go" disabled>Start flashing</button>
+    <div id="status"></div>
+    <p class="hint">Tip: max screen brightness · dark room · point camera at the screen.</p>
+  </div>
+  <script>
+    let timeline = null;
+    const ui = document.getElementById('ui');
+    const flash = document.getElementById('flash');
+    const status = document.getElementById('status');
+    const go = document.getElementById('go');
+    const file = document.getElementById('file');
+    const loopsSel = document.getElementById('loops');
+
+    file.addEventListener('change', async () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      try {
+        timeline = JSON.parse(await f.text());
+        if (!timeline.frames || !timeline.frames.length) throw new Error('no frames');
+        status.textContent = `Loaded ${timeline.frames.length} frames · ${timeline.duration_ms} ms · ${timeline.coding || '?'}`;
+        go.disabled = false;
+      } catch (e) {
+        timeline = null;
+        go.disabled = true;
+        status.textContent = 'Invalid timeline: ' + e.message;
+      }
+    });
+
+    function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+    async function runOnce() {
+      const frames = timeline.frames;
+      // Use cumulative schedule vs wall clock to reduce drift
+      const t0 = performance.now();
+      const base = frames[0].t_ms || 0;
+      for (let i = 0; i < frames.length; i++) {
+        const fr = frames[i];
+        const level = Number(fr.level);
+        flash.style.background = level >= 0.5 ? '#fff' : '#000';
+        const target = t0 + (fr.t_ms - base);
+        const wait = target - performance.now();
+        if (wait > 0) await sleep(wait);
+        else await sleep(0);
+      }
+      flash.style.background = '#000';
+    }
+
+    go.addEventListener('click', async () => {
+      if (!timeline) return;
+      const loops = parseInt(loopsSel.value, 10) || 1;
+      ui.classList.add('hidden');
+      try {
+        if (document.documentElement.requestFullscreen) {
+          await document.documentElement.requestFullscreen().catch(() => {});
+        }
+      } catch (_) {}
+      for (let n = 0; n < loops; n++) {
+        status.textContent = `Pass ${n + 1}/${loops}`;
+        await runOnce();
+        await sleep(400);
+      }
+      if (document.fullscreenElement) {
+        await document.exitFullscreen().catch(() => {});
+      }
+      ui.classList.remove('hidden');
+      status.textContent = 'Done.';
+    });
+  </script>
+</body>
+</html>
